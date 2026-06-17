@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const collegeRoutes = require('./routes/collegeRoutes');
 
 const app = express();
 
@@ -10,5 +11,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-module.exports = app;
+app.use('/api/colleges', collegeRoutes);
 
+module.exports = app;
