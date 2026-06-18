@@ -35,7 +35,7 @@ const createCollege = async (req, res) => {
         error: `A college named "${existing.collegeName}" already exists`,
       });
     }
-
+    req.body.lastUpdatedBy = req.employeeName;
     const college = await College.create(req.body);
     res.status(201).json({ success: true, data: college });
   } catch (error) {
@@ -62,7 +62,7 @@ const updateCollege = async (req, res) => {
 
       req.body.collegeNameNormalized = normalizedName;
     }
-
+    req.body.lastUpdatedBy = req.employeeName;
     const college = await College.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
