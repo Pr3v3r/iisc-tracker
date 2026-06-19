@@ -3,7 +3,23 @@ const College = require('../models/College');
 // GET /api/colleges
 const getColleges = async (req, res) => {
   try {
-    const colleges = await College.find();
+    const { search, status, employee } = req.query;
+    const query = {};
+
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.collegeName = { $regex: escaped, $options: 'i' };
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (employee) {
+      query.assignedEmployee = { $regex: employee.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    }
+
+    const colleges = await College.find(query);
     res.json({ success: true, data: colleges });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
