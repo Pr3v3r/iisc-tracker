@@ -7,10 +7,12 @@ const {
   createCollege,
   updateCollege,
   deleteCollege,
+  getDashboardStats
 } = require('../controllers/collegeController');
 
 router.use(protect);
 
+router.get('/stats', getDashboardStats);
 router.get('/', getColleges);
 router.get('/:id', getCollegeById);
 router.post('/', createCollege);

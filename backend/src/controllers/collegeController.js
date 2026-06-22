@@ -1,6 +1,8 @@
 const College = require('../models/College');
 
 // GET /api/colleges
+const { getPriorityScore } = require('../utils/priorityUtils');
+
 const getColleges = async (req, res) => {
   try {
     const { search, status, employee } = req.query;
@@ -16,11 +18,18 @@ const getColleges = async (req, res) => {
     }
 
     if (employee) {
-      query.assignedEmployee = { $regex: employee.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+      query.assignedEmployee = {
+        $regex: employee.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        $options: 'i',
+      };
     }
 
     const colleges = await College.find(query);
-    res.json({ success: true, data: colleges });
+
+    // Sort by priority score ascending (1 = highest priority)
+    colleges.sort((a, b) => getPriorityScore(a) - getPriorityScore(b));
+
+    res.json({ success: true, count: colleges.length, data: colleges });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -104,11 +113,55 @@ const deleteCollege = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+const getDashboardStats = async (req, res) => {
+  try {
+    const colleges = await College.find();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+    const threeDaysLater = new Date(today);
+    threeDaysLater.setDate(today.getDate() + 3);
+
+    const sevenDaysLater = new Date(today);
+    sevenDaysLater.setDate(today.getDate() + 7);
+
+    const stats = {
+      total: colleges.length,
+      upcoming: 0,
+      visited: 0,
+      overdueFollowUps: 0,
+      followUpsThisWeek: 0,
+      upcomingVisitsThisWeek: 0,
+    };
+
+    for (const college of colleges) {
+      if (college.status === 'Upcoming') stats.upcoming++;
+      if (college.status === 'Visited') stats.visited++;
+
+      if (college.followUpDate) {
+        const followUp = new Date(college.followUpDate);
+        if (followUp < today) stats.overdueFollowUps++;
+        else if (followUp <= sevenDaysLater) stats.followUpsThisWeek++;
+      }
+
+      if (college.status === 'Upcoming' && college.visitDate) {
+        const visit = new Date(college.visitDate);
+        if (visit >= today && visit <= sevenDaysLater) {
+          stats.upcomingVisitsThisWeek++;
+        }
+      }
+    }
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 module.exports = {
   getColleges,
   getCollegeById,
   createCollege,
   updateCollege,
   deleteCollege,
+  getDashboardStats,
 };
