@@ -9,8 +9,8 @@ const collegeSchema = new mongoose.Schema(
     },
     assignedEmployee: {
       type: String,
-      required: [true, 'Assigned employee is required'],
       trim: true,
+      default: '',
     },
     status: {
       type: String,

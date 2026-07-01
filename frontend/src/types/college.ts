@@ -14,7 +14,7 @@ export interface College {
   
   export interface CollegeFormData {
     collegeName: string;
-    assignedEmployee: string;
+    assignedEmployee?: string; 
     status: 'Upcoming' | 'Visited';
     visitDate?: string;
     notes?: string;
