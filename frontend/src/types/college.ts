@@ -10,16 +10,19 @@ export interface College {
     lastUpdatedBy: string;
     createdAt: string;
     updatedAt: string;
+    contactPerson: string;
   }
   
   export interface CollegeFormData {
     collegeName: string;
-    assignedEmployee?: string; 
+    assignedEmployee?: string;
     status: 'Upcoming' | 'Visited';
     visitDate?: string;
     notes?: string;
     followUpDate?: string;
     followUpNotes?: string;
+    contactPerson?: string;
+    reason?: string; // for audit log
   }
   
   export interface DashboardStats {

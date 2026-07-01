@@ -7,10 +7,12 @@ interface LoginPageProps {
 }
 
 const EMPLOYEE_NAMES = [
-  'Pravar',
-  'Riya',
-  'Amit',
-  'Neha',
+  'Aaron',
+  'Sakshita',
+  'Nevin',
+  'Varsha',
+  'Arnav',
+  'Pravar'
 ];
 
 const LoginPage = ({ onLoginSuccess }: LoginPageProps) => {

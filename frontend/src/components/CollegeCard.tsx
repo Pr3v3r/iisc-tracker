@@ -59,6 +59,11 @@ const CollegeCard = ({ college, onClick }: CollegeCardProps) => {
           }
         >
           {college.status}
+          {college.contactPerson && (
+  <p className="text-xs text-sage mb-2">
+    Contact: <span className="font-medium">{college.contactPerson}</span>
+  </p>
+)}
         </span>
       </div>
 

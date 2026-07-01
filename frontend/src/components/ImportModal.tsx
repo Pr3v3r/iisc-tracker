@@ -19,6 +19,7 @@ const ImportModal = ({ onClose, onImportComplete }: ImportModalProps) => {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -68,7 +69,7 @@ const ImportModal = ({ onClose, onImportComplete }: ImportModalProps) => {
   const handleDownloadTemplate = () => {
     const templateData = [
       {
-        'College Name': 'IIT Bombay',
+        'College Name': 'IIT Dholakpur',
         'Assigned Employee': 'Pravar',
         'Status': 'Upcoming',
         'Visit Date': '2026-07-15',

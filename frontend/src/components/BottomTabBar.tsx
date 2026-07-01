@@ -7,6 +7,7 @@ const BottomTabBar = () => {
   const tabs = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/colleges', label: 'Colleges', icon: '🎓' },
+    { path: '/log', label: 'Log', icon: '📋' },
   ];
 
   return (

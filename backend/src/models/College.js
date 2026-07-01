@@ -46,6 +46,11 @@ const collegeSchema = new mongoose.Schema(
       required: true,
       unique: true, 
     },
+    contactPerson: {
+      type: String,
+      trim: true,
+      default: '',
+    }
   },
   {
     timestamps: true, // adds createdAt and updatedAt automatically

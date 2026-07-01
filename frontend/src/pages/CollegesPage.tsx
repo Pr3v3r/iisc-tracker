@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast'; // <-- Added toast import
 import api from '../api/axios';
 import type { College, CollegeFormData } from '../types/college';
 import BottomTabBar from '../components/BottomTabBar';
@@ -38,15 +39,23 @@ const CollegesPage = () => {
 
   useEffect(() => {
     fetchColleges();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, statusFilter]);
-
+  
   const handleSave = async (data: CollegeFormData) => {
-    if (selectedCollege) {
-      await api.put(`/colleges/${selectedCollege._id}`, data);
-    } else {
-      await api.post('/colleges', data);
+    try {
+      if (selectedCollege) {
+        await api.put(`/colleges/${selectedCollege._id}`, data);
+        toast.success('College updated successfully'); // <-- Toast restored
+      } else {
+        await api.post('/colleges', data);
+        toast.success('College added successfully'); // <-- Toast restored
+      }
+      await fetchColleges();
+    } catch (err) {
+      console.error('Failed to save college', err);
+      toast.error('Failed to save college'); // <-- Added error toast for UX
     }
-    await fetchColleges(); // refresh list after save
   };
 
   const handleCardClick = (college: College) => {

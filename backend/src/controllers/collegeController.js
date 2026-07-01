@@ -2,6 +2,7 @@ const College = require('../models/College');
 
 // GET /api/colleges
 const { getPriorityScore } = require('../utils/priorityUtils');
+const AuditLog = require('../models/AuditLog');
 
 const getColleges = async (req, res) => {
   try {
@@ -73,10 +74,9 @@ const updateCollege = async (req, res) => {
   try {
     if (req.body.collegeName) {
       const normalizedName = req.body.collegeName.trim().toLowerCase();
-
       const existing = await College.findOne({
         collegeNameNormalized: normalizedName,
-        _id: { $ne: req.params.id }, // exclude the current document itself
+        _id: { $ne: req.params.id },
       });
       if (existing) {
         return res.status(409).json({
@@ -84,17 +84,69 @@ const updateCollege = async (req, res) => {
           error: `A college named "${existing.collegeName}" already exists`,
         });
       }
-
       req.body.collegeNameNormalized = normalizedName;
     }
+
+    // Overdue date change detection
+    const currentCollege = await College.findById(req.params.id);
+    if (!currentCollege) {
+      return res.status(404).json({ success: false, error: 'College not found' });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const datesToCheck = ['followUpDate', 'visitDate'];
+
+    for (const field of datesToCheck) {
+      const incomingDate = req.body[field];
+      const currentDate = currentCollege[field];
+
+      if (incomingDate && currentDate) {
+        const current = new Date(currentDate);
+        current.setHours(0, 0, 0, 0);
+        const incoming = new Date(incomingDate);
+        incoming.setHours(0, 0, 0, 0);
+
+        const isOverdue = current < today;
+        const isChanging = current.getTime() !== incoming.getTime();
+
+        if (isOverdue && isChanging) {
+          const { reason } = req.body;
+          if (!reason || !reason.trim()) {
+            return res.status(400).json({
+              success: false,
+              error: `A reason is required to reschedule an overdue ${field === 'followUpDate' ? 'follow-up' : 'visit'} date`,
+              requiresReason: true,
+              field,
+            });
+          }
+
+          await AuditLog.create({
+            eventType: 'POSTPONE',
+            collegeName: currentCollege.collegeName,
+            collegeId: currentCollege._id,
+            performedBy: req.employeeName,
+            reason: reason.trim(),
+            metadata: {
+              field,
+              oldDate: currentDate,
+              newDate: new Date(incomingDate),
+            },
+          });
+        }
+      }
+    }
+
+    // Remove reason from body before saving to College
+    delete req.body.reason;
     req.body.lastUpdatedBy = req.employeeName;
+
     const college = await College.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
-    if (!college) {
-      return res.status(404).json({ success: false, error: 'College not found' });
-    }
+
     res.json({ success: true, data: college });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
@@ -104,15 +156,34 @@ const updateCollege = async (req, res) => {
 // DELETE /api/colleges/:id
 const deleteCollege = async (req, res) => {
   try {
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'A reason is required to delete a college',
+      });
+    }
+
     const college = await College.findByIdAndDelete(req.params.id);
     if (!college) {
       return res.status(404).json({ success: false, error: 'College not found' });
     }
+
+    await AuditLog.create({
+      eventType: 'DELETION',
+      collegeName: college.collegeName,
+      collegeId: college._id,
+      performedBy: req.employeeName,
+      reason: reason.trim(),
+    });
+
     res.json({ success: true, data: {} });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
 const getDashboardStats = async (req, res) => {
   try {
     const colleges = await College.find();

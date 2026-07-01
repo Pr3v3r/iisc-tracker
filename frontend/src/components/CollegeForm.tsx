@@ -3,16 +3,18 @@ import type { College, CollegeFormData } from '../types/college';
 import api from '../api/axios';
 
 const EMPLOYEE_NAMES = [
-  'Pravar',
-  'Riya',
-  'Amit',
-  'Neha',
+  'Aaron',
+  'Sakshita',
+  'Nevin',
+  'Varsha',
+  'Arnav',
+  'Pravar'
 ];
-  
+
 interface CollegeFormProps {
   college?: College | null;
   onSave: (data: CollegeFormData) => Promise<void>;
-  onClose: () => void;
+  onClose: (deleted?: boolean) => void;
 }
 
 const EMPTY_FORM: CollegeFormData = {
@@ -23,6 +25,7 @@ const EMPTY_FORM: CollegeFormData = {
   notes: '',
   followUpDate: '',
   followUpNotes: '',
+  contactPerson: '',
 };
 
 const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
@@ -30,8 +33,11 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [postponeReason, setPostponeReason] = useState('');
+  const [showPostponeModal, setShowPostponeModal] = useState(false);
+  const [pendingPostponeField, setPendingPostponeField] = useState('');
 
-  // Populate form if editing existing college
   useEffect(() => {
     if (college) {
       setForm({
@@ -46,6 +52,7 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
           ? new Date(college.followUpDate).toISOString().split('T')[0]
           : '',
         followUpNotes: college.followUpNotes || '',
+        contactPerson: college.contactPerson || '',
       });
     } else {
       setForm(EMPTY_FORM);
@@ -58,13 +65,12 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (reason?: string) => {
     if (!form.collegeName.trim()) {
       setError('College name is required');
       return;
     }
-
-    // If status is Visited, visit date cannot be in the future
+  
     if (form.status === 'Visited' && form.visitDate) {
       const visitDate = new Date(form.visitDate);
       const today = new Date();
@@ -74,28 +80,36 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
         return;
       }
     }
-
+  
     setLoading(true);
     setError('');
-    
+  
     try {
-      await onSave(form);
+      // If a reason is provided, attach it to the payload
+      const payload = reason ? { ...form, reason } : form;
+      await onSave(payload as CollegeFormData);
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Something went wrong. Try again.');
+      if (err.response?.data?.requiresReason) {
+        setShowPostponeModal(true);
+        setPendingPostponeField(err.response.data.field);
+      } else {
+        setError(err.response?.data?.error || 'Something went wrong. Try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const isEditing = !!college;
-
   const handleDelete = async () => {
     if (!college) return;
+    if (!deleteReason.trim()) return;
     setLoading(true);
     try {
-      await api.delete(`/colleges/${college._id}`);
-      onClose();
+      await api.delete(`/colleges/${college._id}`, {
+        data: { reason: deleteReason.trim() },
+      });
+      onClose(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete. Try again.');
     } finally {
@@ -103,15 +117,15 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
     }
   };
 
+  const isEditing = !!college;
+
   return (
-    // Overlay
     <div
       className="fixed inset-0 bg-black/40 z-50 flex items-end"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Bottom sheet */}
       <div className="bg-cream w-full rounded-t-3xl max-h-[90vh] overflow-y-auto">
         {/* Handle bar */}
         <div className="flex justify-center pt-3 pb-1">
@@ -124,7 +138,7 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
             {isEditing ? 'Edit College' : 'Add College'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={() => onClose()}
             className="text-sage hover:text-ink text-2xl leading-none"
           >
             ×
@@ -168,7 +182,22 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
               ))}
             </select>
           </div>
-          
+
+          {/* Contact Person */}
+          <div>
+            <label className="block text-sm font-medium text-ink mb-1">
+              Contact Person
+            </label>
+            <input
+              type="text"
+              name="contactPerson"
+              value={form.contactPerson}
+              onChange={handleChange}
+              placeholder="e.g. Dr. Sharma (optional)"
+              className="w-full px-4 py-3 rounded-xl border border-warmgray focus:outline-none focus:ring-2 focus:ring-forest bg-white text-ink text-base"
+            />
+          </div>
+
           {/* Status */}
           <div>
             <label className="block text-sm font-medium text-ink mb-1">
@@ -254,16 +283,16 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
             </div>
           )}
 
-          {/* Submit Button (Properly Separated) */}
+          {/* Submit */}
           <button
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()} 
             disabled={loading}
-            className="w-full bg-forest hover:bg-forest-dark disabled:bg-forest/40 text-white font-semibold py-3 rounded-xl transition-colors text-base mt-2"
+            className="w-full bg-forest hover:bg-forest-dark disabled:bg-forest/40 text-white font-semibold py-3 rounded-xl transition-colors text-base"
           >
             {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Add College'}
           </button>
 
-          {/* Delete Section (Separated below the Submit Button) */}
+          {/* Delete */}
           {isEditing && (
             <div className="pt-4 mt-2 border-t border-warmgray">
               {!confirmDelete ? (
@@ -278,16 +307,26 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
                   <p className="text-red-700 text-sm font-medium text-center">
                     Are you sure? This cannot be undone.
                   </p>
+                  <textarea
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Reason for deletion (required)..."
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-xl border border-red-200 bg-white text-ink text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
                   <div className="flex gap-3">
                     <button
-                      onClick={() => setConfirmDelete(false)}
-                      className="flex-1 py-2 rounded-xl border border-red-200 text-red-600 bg-white font-medium text-sm"
+                      onClick={() => {
+                        setConfirmDelete(false);
+                        setDeleteReason('');
+                      }}
+                      className="flex-1 py-2 rounded-xl border border-warmgray text-sage font-medium text-sm bg-white"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleDelete}
-                      disabled={loading}
+                      disabled={loading || !deleteReason.trim()}
                       className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white font-medium text-sm transition-colors"
                     >
                       {loading ? 'Deleting...' : 'Yes, Delete'}
@@ -297,9 +336,51 @@ const CollegeForm = ({ college, onSave, onClose }: CollegeFormProps) => {
               )}
             </div>
           )}
-          
+
         </div>
       </div>
+      
+      {/* Postpone Modal */}
+      {showPostponeModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4">
+            <h3 className="font-bold text-ink text-base">Reason Required</h3>
+            <p className="text-sm text-sage">
+              The {pendingPostponeField === 'followUpDate' ? 'follow-up' : 'visit'} date
+              was overdue. Please provide a reason for rescheduling.
+            </p>
+            <textarea
+              value={postponeReason}
+              onChange={(e) => setPostponeReason(e.target.value)}
+              placeholder="e.g. College requested to reschedule..."
+              rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-warmgray text-ink text-sm resize-none focus:outline-none focus:ring-2 focus:ring-forest"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPostponeModal(false);
+                  setPostponeReason('');
+                }}
+                className="flex-1 py-2 rounded-xl border border-warmgray text-sage text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!postponeReason.trim()) return;
+                  setShowPostponeModal(false);
+                  handleSubmit(postponeReason.trim());
+                }}
+                disabled={!postponeReason.trim()}
+                className="flex-1 py-2 rounded-xl bg-forest text-white text-sm disabled:bg-forest/40"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
